@@ -90,6 +90,14 @@ def dw_using_yt(link, proxy, song_name, datatype, no_progress=False, ytdl_config
     extra_opts = {
         'outtmpl': song_name,
         'format': format_,
+        'postprocessors': [{
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            },
+            {"key": "FFmpegMetadata"}
+        }],
     }
 
     # Add a postprocessor to convert the audio into

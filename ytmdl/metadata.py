@@ -133,7 +133,7 @@ def lookup_from_spotify(id):
         return None
 
 
-def _search_tokens(song_name, song_list):
+def _search_tokens(song_name, song_list, yt_title):
     """Search song in the cache based on simple each word matching."""
     song_name = remove_punct(
         remove_stopwords(
@@ -141,6 +141,11 @@ def _search_tokens(song_name, song_list):
         ))
     tokens1 = song_name.split()
     cached_songs = song_list
+    yt_title = remove_punct(
+        remove_stopwords(
+            remove_multiple_spaces(unidecode(yt_title)).lower()
+        ))
+    tokens3 = yt_title.split()
 
     res = []
     for song in cached_songs:
@@ -159,8 +164,40 @@ def _search_tokens(song_name, song_list):
         if match:
             dist = compute_jaccard(tokens1, tokens2)
             if dist >= preconfig.CONFIG().SEARCH_SENSITIVITY:
-                res.append((song_back, dist))
-    res = sorted(res, key=lambda x: x[1], reverse=True)
+                albumDist = 0
+                artistDist = 0
+                if yt_title:
+                    # Compare the yt_title (which may have artist and collection names) with the song's collection_name and artist_name as well to get more accurate matches
+                    collection_name = song.collection_name.lower()
+                    # If there is a part like (featuring ..) or any extra data
+                    # we should remove it as it doesn't aid the search
+                    collection_name = re.sub(r'\([^)]*\)', '', collection_name)
+                    collection_name = re.sub(r'&', 'and', collection_name)
+                    collection_name = remove_stopwords(collection_name)
+                    collection_name = remove_punct(collection_name)
+                    collection_name = remove_multiple_spaces(collection_name)
+                    collection_name = unidecode(collection_name)
+                    tokens4 = collection_name.split()
+                    albumDist = compute_jaccard(tokens3, tokens4)
+
+                    # Compute artist dist
+                    artist_name = song.artist_name.lower()
+                    # If there is a part like (featuring ..) or any extra data
+                    # we should remove it as it doesn't aid the search
+                    artist_name = re.sub(r'\([^)]*\)', '', artist_name)
+                    artist_name = re.sub(r'&', 'and', artist_name)
+                    artist_name = remove_stopwords(artist_name)
+                    artist_name = remove_punct(artist_name)
+                    artist_name = remove_multiple_spaces(artist_name)
+                    artist_name = unidecode(artist_name)
+                    tokens5 = artist_name.split()
+                    artistDist = compute_jaccard(tokens3, tokens5)
+                    
+                    logger.debug(f"yt_title comparison - {yt_title} vs {collection_name} - {albumDist} - {artist_name} - {artistDist}")
+                
+                res.append((song_back, dist, albumDist, artistDist))
+    # Sort the results based on albumDist desc and artistDist desc and dist desc
+    res.sort(key=lambda x: (x[2], x[3], x[1]), reverse=True) 
 
     # Return w/o the dist values
     for i in range(0, len(res)):
@@ -208,7 +245,7 @@ def _extend_to_be_sorted_and_rest(provider_data, to_be_sorted, rest, filters):
         rest.extend(provider_data[10:])
 
 
-def SEARCH_SONG(search_by="Tera Buzz", song_name="Tera Buzz", filters=[], disable_sort=False):
+def SEARCH_SONG(search_by="Tera Buzz", song_name="Tera Buzz", filters=[], disable_sort=False, yt_title=""):
     """Do the task by calling other functions."""
     to_be_sorted = []
     rest = []
@@ -257,7 +294,7 @@ def SEARCH_SONG(search_by="Tera Buzz", song_name="Tera Buzz", filters=[], disabl
         return to_be_sorted
 
     # Send the data to get sorted
-    sorted_data = _search_tokens(song_name, to_be_sorted)
+    sorted_data = _search_tokens(song_name, to_be_sorted, yt_title)
 
     # Add the unsorted data
     sorted_data += rest

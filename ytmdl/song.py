@@ -101,6 +101,8 @@ def print_choice(beg, end, SONG_INFO, type):
         print(Fore.YELLOW, end='')
         if type == 'metadata':
             print(SONG_INFO[beg].artist_name, end='')
+            print(' from ', end='')
+            print(SONG_INFO[beg].provider, end='')
         if type == 'mp3':
             print(SONG_INFO[beg]['author_name'], end='')
             print(Style.RESET_ALL, end='')

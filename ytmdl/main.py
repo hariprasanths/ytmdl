@@ -21,6 +21,7 @@ from os import path
 from simber import Logger
 from ytmdl import (
     dir,
+    stringutils,
     yt,
     defaults,
     setupConfig,
@@ -274,6 +275,8 @@ def main(args):
 
     link, yt_title = search(song_name=song_name, args=args)
 
+    yt_title_stripped = stringutils.remove_yt_words(yt_title)
+
     # Check if this song is supposed to be skipped.
     if not link:
         logger.warning("Skipping this song!")
@@ -351,7 +354,8 @@ def main(args):
                 args,
                 link,
                 stream,
-                is_download_archive
+                is_download_archive,
+                yt_title_stripped
             )
         except Exception as e:
             if args.ignore_errors:
@@ -377,7 +381,8 @@ def post_processing(
     args: object,
     link: str,
     stream,
-    is_download_archive: bool
+    is_download_archive: bool,
+    yt_title: str = ""
 ) -> None:
     """Handle all the activities post search of the song.
 
@@ -411,7 +416,7 @@ def post_processing(
 
     # Else fill the meta by searching
     try:
-        track_selected = meta(conv_name, song_name, song_metadata, args)
+        track_selected = meta(conv_name, song_name, song_metadata, args, yt_title)
     except NoMetaError as no_meta_error:
         if args.on_meta_error == 'skip':
             # Write to the archive file
