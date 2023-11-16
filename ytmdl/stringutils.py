@@ -81,7 +81,7 @@ def remove_stopwords(string):
             res.append(token)
     return ' '.join(res)
 
-
+ 
 def check_keywords(tokens1, tokens2):
     """Check if all the tokens from tokens1 is in tokens2 list."""
     res = [token in tokens2 for token in tokens1]
@@ -96,11 +96,17 @@ def remove_yt_words(title):
     # Remove square as well as circle brackets
     # Remove dashes (-) and trademark icons like ®
     # Remove spaces in the beginning or at the end
+    from simber import Logger
+    logger = Logger('metadata')
     title = re.sub(
-                r'\]|\[|official|video|music|audio|full|lyrics?|-|\)|\(|®|^[ ]*|[ ]*$',
+                r'\]|\[|sun\smusic|official|video|music|audio|lyrics?|-|\||\)|\(|®|^[ ]*|[ ]*$',
                 '',
                 str(title).lower()
             )
+    unwanted_words = [' lyric ', ' songs ', ' song ', ' hits ', ' tamil ', ' movie ', ' 4k ', ' hd ', ' hdr ', ' 3d ', ' 8d ', ' full ', ',']
+    for word in unwanted_words:
+        if word in title:
+            title = title.replace(word, ' ')
     # Replace more than one space with one space
     title = re.sub(r'\ {2,}', ' ', title)
     return title

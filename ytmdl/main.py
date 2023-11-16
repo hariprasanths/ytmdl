@@ -21,6 +21,7 @@ from os import path
 from simber import Logger
 from ytmdl import (
     dir,
+    stringutils,
     yt,
     defaults,
     setupConfig,
@@ -43,6 +44,10 @@ from ytmdl.utils.ytdl import is_ytdl_config_present
 from ytmdl.yt import is_yt_url
 from ytmdl.__version__ import __version__
 from typing import Tuple
+
+from pathlib import Path
+from io import TextIOWrapper
+from datetime import datetime
 
 # init colorama for windows
 init()
@@ -243,11 +248,11 @@ def main(args):
     stream = None
 
     if is_download_archive:
-        archive_content, stream = open_archive_stream(args.download_archive)
+        archive_content, stream = open_archive_stream(args.download_archive, args.stream)
 
-    logger.debug(song_name)
+    logger.debug(f'extracted song name - {song_name}')
     logger.hold()
-    logger.debug(stream)
+    # logger.debug(f'downloaded archive bool - {args.download_archive}; download archive stream - {stream}')
 
     if not args.nolocal:
         # Search for the song locally
@@ -274,12 +279,15 @@ def main(args):
 
     link, yt_title = search(song_name=song_name, args=args)
 
+    yt_title_stripped = stringutils.remove_yt_words(yt_title)
+
     # Check if this song is supposed to be skipped.
     if not link:
         logger.warning("Skipping this song!")
         return
 
     # If download archive is passed then skip the song.
+    logger.debug(f'is_download_archive: - {str(is_download_archive)}; is_present_in_archive: - {str(is_present_in_archive(archive_content, link))}')
     if is_download_archive and is_present_in_archive(archive_content, link):
         logger.warning("videoId found in the archive file. Skipping the song!")
         return
@@ -337,7 +345,7 @@ def main(args):
             # NOTE: Check if skip meta is passed, we don't need to
             # extract the new title.
             song_metadata = utility.get_new_title(song_metadata) if \
-                (not args.keep_chapter_name and not args.skip_meta and not is_original) else song_metadata
+                (not args.keep_chapter_name and not args.skip_meta and not is_original and not args.title_as_name) else song_metadata
 
         # Pass the song for post processing
         try:
@@ -351,7 +359,8 @@ def main(args):
                 args,
                 link,
                 stream,
-                is_download_archive
+                is_download_archive,
+                yt_title_stripped
             )
         except Exception as e:
             if args.ignore_errors:
@@ -377,7 +386,8 @@ def post_processing(
     args: object,
     link: str,
     stream,
-    is_download_archive: bool
+    is_download_archive: bool,
+    yt_title: str = ""
 ) -> None:
     """Handle all the activities post search of the song.
 
@@ -411,8 +421,12 @@ def post_processing(
 
     # Else fill the meta by searching
     try:
-        track_selected = meta(conv_name, song_name, song_metadata, link, args)
+        track_selected = meta(conv_name, song_name, song_metadata, link, args, yt_title)
     except NoMetaError as no_meta_error:
+        if args.on_meta_error == 'ignore_song':
+            logger.debug("meta fetch error - {no_meta_error} - ignoring song")
+            return
+        
         if args.on_meta_error == 'skip':
             # Write to the archive file
             add_song_to_archive(
@@ -437,6 +451,9 @@ def post_processing(
     # If no metadata was selected, just do a dry cleanup and skip the
     # song
     if track_selected is None:
+        if args.on_meta_error == 'ignore_song':
+            logger.debug("no meta found - ignoring song")
+            return
         if dir.dry_cleanup(conv_name, song_name, args.filename):
             logger.info("Done")
         elif not args.ignore_errors or args.on_meta_error == 'exit':
@@ -573,6 +590,8 @@ def extract_data():
             logger.info("{}: is empty".format(args.list))
     elif args.SONG_NAME and yt.is_playlist(args.SONG_NAME[0]):
         logger.info("Youtube playlist passed...extracting!")
+        logger.debug(f'YTMDL run started at time given a playlist - {datetime.now()}')
+
         songs, playlist_name = yt.get_playlist(
             args.SONG_NAME[0],
             args.proxy,
@@ -596,6 +615,21 @@ def extract_data():
         # Iterate and work on the data.
         # NOTE: song["url"] will contain the URL all right, it won't be just
         # the href.
+
+        args.download_archive_stream = None
+        # Extract the archive file contents
+        is_download_archive = args.download_archive is not None
+        stream = None
+
+        if is_download_archive:
+            file_path: Path = Path(args.download_archive).expanduser()
+            # Check if the file exists
+            if not file_path.exists():
+                logger.critical("Passed archive file does not exist. Exiting!")
+
+            stream: TextIOWrapper = file_path.open("r+")
+            args.stream = stream
+
         for song in songs:
             args.url = song["url"]
 
@@ -605,12 +639,19 @@ def extract_data():
                 args.url = f"https://www.youtube.com/watch?v={args.url}"
 
             main(args)
+        
+        # Close the download archive file stream if it's open
+        if is_download_archive:
+            stream.close()
+        
     else:
         main(args)
 
 
 def entry():
     try:
+        # log YTMDL start time
+        logger.debug(f'YTMDL run started at time - {datetime.now()}')
         extract_data()
     except KeyboardInterrupt:
         logger.info("\nExiting..!")

@@ -113,6 +113,9 @@ class SaavnSong():
         """
         return url.replace("500x500", "100x100")
 
+    def hash(self):
+        return str(self.track_name) + str(self.artist_name) + str(self.collection_name) + str(self.release_date) + str(self.track_number)
+
 
 def search_query(query):
     """

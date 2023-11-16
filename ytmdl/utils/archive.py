@@ -14,12 +14,14 @@ from ytmdl.yt import extract_video_id
 logger = Logger("archive")
 
 
-def open_archive_stream(file: str) -> Union[List, TextIOWrapper]:
+def open_archive_stream(file: str, stream: TextIOWrapper) -> Union[List, TextIOWrapper]:
     """
     Read the archive file and extract all the videoId's
     passed. This file will be read as text and should contain
     videoId's in each line.
     """
+    if stream is not None:
+        stream.close()
     file_path: Path = Path(file).expanduser()
 
     # Check if the file exists
@@ -38,6 +40,8 @@ def is_present_in_archive(file_content: List, youtube_link: str) -> bool:
     and accordingly return.
     """
     video_id: str = extract_video_id(youtube_link)
+
+    # logger.debug(f'video id - {youtube_link}; filecontent - {file_content}')
 
     return video_id in file_content
 

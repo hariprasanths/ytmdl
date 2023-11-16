@@ -41,6 +41,9 @@ class SpotifySong(object):
         self.artwork_url_100 = song["album"]["images"][0]["url"]
         self.track_time = song["duration_ms"]
 
+    def hash(self):
+        return str(self.track_name) + str(self.artist_name) + str(self.collection_name) + str(self.release_date) + str(self.track_number)
+
 
 def search_song(
     query,

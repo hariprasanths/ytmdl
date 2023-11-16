@@ -90,8 +90,22 @@ def dw_using_yt(link, proxy, song_name, datatype, no_progress=False, ytdl_config
 
     extra_opts = {
         'outtmpl': song_name,
-        'format': format_,
+        'format': format_
     }
+
+    # TODO: compare yl-dlp's artist and album
+    # extra_opts = {
+    #     'outtmpl': song_name,
+    #     'format': format_,
+    #     'postprocessors': [{
+    #         {
+    #             "key": "FFmpegExtractAudio",
+    #             "preferredcodec": "mp3",
+    #             "preferredquality": "192",
+    #         },
+    #         {"key": "FFmpegMetadata"}
+    #     }],
+    # }
 
     # Add a postprocessor to convert the audio into
     # opus if dont_convert is passed.
@@ -398,7 +412,7 @@ def get_title(url, ytdl_config: str = None) -> str:
     verify_title = False
 
     try:
-        title = get_title_from_ytmusic(extract_video_id(url=url))
+        title = stringutils.remove_yt_words(get_title_from_ytmusic(extract_video_id(url=url)))
         return title, verify_title
     except ExtractError:
         logger.debug(f"YtMusic wasn't able to find title for {url}")

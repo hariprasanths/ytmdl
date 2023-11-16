@@ -101,6 +101,11 @@ def print_choice(beg, end, SONG_INFO, type):
         print(Fore.YELLOW, end='')
         if type == 'metadata':
             print(SONG_INFO[beg].artist_name, end='')
+            print(' from ', end='')
+            if hasattr(SONG_INFO[beg], 'provider'):
+                print(SONG_INFO[beg].provider, end='')
+            else:
+                print((SONG_INFO[beg]), end='')
         if type == 'mp3':
             print(SONG_INFO[beg]['author_name'], end='')
             print(Style.RESET_ALL, end='')
@@ -413,6 +418,10 @@ def setData(SONG_INFO, is_quiet, song_path, datatype='mp3', choice=None, skip_sh
 
     if hasattr(song, 'provider') and song.provider in get_more_data_dict:
         song = get_more_data_dict.get(song.provider, lambda _: None)(song)
+        if type(song) == Exception:
+            logger.error(
+                "Failed to get_more_metadata: {}".format(song))
+            song = SONG_INFO[option]
 
     if datatype == 'mp3':
         img_added = set_MP3_data(

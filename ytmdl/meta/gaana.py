@@ -32,6 +32,9 @@ class GaanaSongs():
         in_time = int(in_min / 60) + (0.01 * (in_min % 60))
         return in_time
 
+    def hash(self):
+        return str(self.track_name) + str(self.artist_name) + str(self.collection_name) + str(self.release_date) + str(self.track_number)
+
 
 def searchSong(querry, lim=40):
     """Nanan."""

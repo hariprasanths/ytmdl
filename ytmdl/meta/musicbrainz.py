@@ -51,6 +51,9 @@ class MusicBrainzSong():
     def release_id(self) -> str:
         return self.__release_id
 
+    def hash(self):
+        return str(self.track_name) + str(self.artist_name) + str(self.collection_name) + str(self.release_date) + str(self.track_number)
+
 
 def search_song(query, lim=25):
     """Search the song using the API and return the

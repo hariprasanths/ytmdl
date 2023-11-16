@@ -22,4 +22,4 @@ class CONFIG:
 
     # Search sensitivity is the restriction on matching the
     # search results to the value entered by the user.
-    SEARCH_SENSITIVITY = 0.5
+    SEARCH_SENSITIVITY = 0.15

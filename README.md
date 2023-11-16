@@ -133,8 +133,10 @@ pip install simber downloader-cli --upgrade
 ```
 
 ### Manual
+1) Install using pip
+   sudo pip install ~/ytmdlSource --upgrade && sudo cp ~/ytmdl/backupConfig /root/.config/ytmdl/config
 
-You can manually install `ytmdl` by cloning this repository and running the `setup.py` script.
+2) You can manually install `ytmdl` by cloning this repository and running the `setup.py` script.
 
 1. Install `setuptools` if it isn't already:
 

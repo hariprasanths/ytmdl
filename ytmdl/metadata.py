@@ -14,6 +14,8 @@ from ytmdl.meta import (
 )
 from unidecode import unidecode
 
+from datetime import datetime
+
 logger = Logger('metadata')
 
 
@@ -133,37 +135,110 @@ def lookup_from_spotify(id):
         return None
 
 
-def _search_tokens(song_name, song_list):
+def _search_tokens(song_name, song_list, yt_title):
     """Search song in the cache based on simple each word matching."""
     song_name = remove_punct(
         remove_stopwords(
             remove_multiple_spaces(unidecode(song_name)).lower()
         ))
-    tokens1 = song_name.split()
+    ytSongNameTokens = song_name.split()
     cached_songs = song_list
+    yt_title = remove_punct(
+        remove_stopwords(
+            remove_multiple_spaces(unidecode(yt_title)).lower()
+        ))
+    ytTitleTokens = yt_title.split()
 
     res = []
     for song in cached_songs:
         song_back = song
-        name = song.track_name.lower()
+        providerSongName = song.track_name.lower()
         # If there is a part like (featuring ..) or any extra data
         # we should remove it as it doesn't aid the search
-        name = re.sub(r'\([^)]*\)', '', name)
-        name = re.sub(r'&', 'and', name)
-        name = remove_stopwords(name)
-        name = remove_punct(name)
-        name = remove_multiple_spaces(name)
-        name = unidecode(name)
-        tokens2 = name.split()
-        match = check_keywords(tokens1, tokens2)
+        providerSongName = re.sub(r'\([^)]*\)', '', providerSongName)
+        providerSongName = re.sub(r'&', 'and', providerSongName)
+        providerSongName = remove_stopwords(providerSongName)
+        providerSongName = remove_punct(providerSongName)
+        providerSongName = remove_multiple_spaces(providerSongName)
+        providerSongName = unidecode(providerSongName)
+        providerSongNameTokens = providerSongName.split()
+        # match = check_keywords(tokens1, tokens2) or len(tokens1)/len(tokens2) >= 2
+        match = True
         if match:
-            dist = compute_jaccard(tokens1, tokens2)
+            dist = compute_jaccard(ytSongNameTokens, providerSongNameTokens)
             if dist >= preconfig.CONFIG().SEARCH_SENSITIVITY:
-                res.append((song_back, dist))
-    res = sorted(res, key=lambda x: x[1], reverse=True)
+                albumDist = 0
+                artistDist = 0
+                weightedDist = 0
+                if yt_title:
+                    # Compare the yt_title (which may have artist and collection names) with the song's collection_name and artist_name as well to get more accurate matches
+
+                    # Compute artist dist
+                    artist_name = song.artist_name.lower()
+                    # If there is a part like (featuring ..) or any extra data
+                    # we should remove it as it doesn't aid the search
+                    artist_name = re.sub(r'\([^)]*\)', '', artist_name)
+                    artist_name = re.sub(r'&', 'and', artist_name)
+                    artist_name = remove_stopwords(artist_name)
+                    artist_name = remove_punct(artist_name)
+                    artist_name = remove_multiple_spaces(artist_name)
+                    artist_name = unidecode(artist_name)
+                    artistNameTokens = (artist_name.split())
+                    artistDist = compute_jaccard(ytTitleTokens, artistNameTokens)
+                    # logger.debug(f'artist comparison stats: {round(artistDist, 3)}; - {artist_name} - {len(artistNameTokens)} - {len(ytTitleTokens)} - {ytTitleTokens} - {artistNameTokens}')
+
+                    # Compute album dist
+                    collection_name = song.collection_name.lower()
+                    # If there is a part like (featuring ..) or any extra data
+                    # we should remove it as it doesn't aid the search
+                    collection_name = re.sub(r'\([^)]*\)', '', collection_name)
+                    collection_name = re.sub(r'&', 'and', collection_name)
+                    collection_name = remove_stopwords(collection_name)
+                    collection_name = remove_punct(collection_name)
+                    collection_name = remove_multiple_spaces(collection_name)
+                    collection_name = unidecode(collection_name)
+                    albumNameTokens = set(collection_name.split())
+                    albumNameTokens = albumNameTokens - set(providerSongNameTokens) - set(artistNameTokens)
+                    albumDist = compute_jaccard(ytTitleTokens, albumNameTokens)
+                    
+                    weightedDist = (albumDist * 0.65) + (artistDist * 0.3) + (dist * 0.05)
+                
+                res.append((song_back, dist, albumDist, artistDist, weightedDist))
+    # Sort the results based on albumDist desc and artistDist desc and dist desc
+    res.sort(key=lambda x: (x[4], x[2], x[3], x[1]), reverse=True)
+
+    # for the first 5 entries, pick the item with oldest release date if dist matches and wightedDist is within 20% of the first
+    first_item_weighted_dist = res[0][4] * 0.8
+    for i in range(0, len(res)):
+        if i < 5:
+            if i == 0:
+                continue
+            if res[i][4] < (first_item_weighted_dist):
+                break
+            if (((res[i][0].release_date is not None and res[i][0].release_date != "") and (res[0][0].release_date is not None and res[0][0].release_date != ""))):
+                # convert to release_date fields to datetime and compare
+                date_format1 = "%Y-%m-%d"
+                date_format2 = "%Y-%m-%d"
+                if (len(res[0][0].release_date) == 4): date_format1 = "%Y"
+                if (len(res[0][0].release_date) == 7): date_format1 = "%Y-%m"
+                if (len(res[i][0].release_date) == 4): date_format2 = "%Y"
+                if (len(res[i][0].release_date) == 7): date_format2 = "%Y-%m"          
+                date1 = datetime.strptime(res[0][0].release_date.split('T')[0], date_format1)
+                date2 = datetime.strptime(res[i][0].release_date.split('T')[0], date_format2)
+                if date1 > date2:
+                    res[0], res[i] = res[i], res[0]
+            elif (res[0][0].release_date is None or res[0][0].release_date == ""):
+                res[0], res[i] = res[i], res[0]
 
     # Return w/o the dist values
     for i in range(0, len(res)):
+        if i < 20:
+            logger.debug(f"title comparison stats: {round(res[i][1], 3)} - {round(res[i][2], 3)} - {round(res[i][3], 3)} - {round(res[i][4], 4)}; -- ;{res[i][0].track_name}; {res[i][0].collection_name}; {res[i][0].artist_name}; {res[i][0].release_date};")
+
+        # skip first item if release date is not present
+        if (res[i][0].release_date is None or res[i][0].release_date == '') and i == 0:
+            continue
+
         res[i] = res[i][0]
     return res
 
@@ -204,11 +279,11 @@ def _extend_to_be_sorted_and_rest(provider_data, to_be_sorted, rest, filters):
     if filters:
         provider_data = filterSongs(provider_data, filters)
     if provider_data is not None:
-        to_be_sorted.extend(provider_data[:10])
+        to_be_sorted.extend(provider_data)
         rest.extend(provider_data[10:])
 
 
-def SEARCH_SONG(search_by="Tera Buzz", song_name="Tera Buzz", filters=[], disable_sort=False):
+def SEARCH_SONG(search_by="Tera Buzz", song_name="Tera Buzz", filters=[], disable_sort=False, yt_title=""):
     """Do the task by calling other functions."""
     to_be_sorted = []
     rest = []
@@ -227,20 +302,64 @@ def SEARCH_SONG(search_by="Tera Buzz", song_name="Tera Buzz", filters=[], disabl
 
     broken_provider_counter = 0
 
-    for provider in metadata_providers:
-        if provider in GET_METADATA_ACTIONS:
-            logger.debug(f"Searching metadata with {provider}")
-            data_provider = GET_METADATA_ACTIONS.get(
-                provider, lambda _: None)(search_by)
-            if data_provider:
-                _extend_to_be_sorted_and_rest(
-                    data_provider, to_be_sorted, rest, filters)
-        else:
-            logger.warning(
-                '"{}" isn\'t implemented. Skipping!'.format(provider)
-            )
-            broken_provider_counter += 1
+    search_by_query_names_array = []
+    search_by_query_names_array.append(search_by)
+    search_by_song_name_tokens = search_by.split()
+    # logger.debug(f'query - {search_by}; tokens - {search_by_song_name_tokens}; ')
+    if len(search_by_song_name_tokens) > 3:
+        search_by_first_5_words = ' '.join(search_by_song_name_tokens[:5])
+        search_by_first_3_words = ' '.join(search_by_song_name_tokens[:3])
+        search_by_first_2_words = ' '.join(search_by_song_name_tokens[:2])
+        search_by_first_1_words = ' '.join(search_by_song_name_tokens[:1])
+        search_by_query_names_array.append(search_by_first_5_words)
+        search_by_query_names_array.append(search_by_first_3_words)
+        search_by_query_names_array.append(search_by_first_2_words)
+        search_by_query_names_array.append(search_by_first_1_words)
+        # logger.debug(f'query - {search_by}; tokens - {search_by_song_name_tokens}; {search_by_first_5_words}; {search_by_first_3_words}; {search_by_first_2_words}; {search_by_first_1_words}')
+    
+    if yt_title != search_by:
+        search_by_song_name_tokens = yt_title.split()
+        if len(search_by_song_name_tokens) > 3:
+            search_by_first_5_words = ' '.join(search_by_song_name_tokens[:5])
+            search_by_first_3_words = ' '.join(search_by_song_name_tokens[:3])
+            search_by_first_2_words = ' '.join(search_by_song_name_tokens[:2])
+            search_by_first_1_words = ' '.join(search_by_song_name_tokens[:1])
+            search_by_query_names_array.append(search_by_first_5_words)
+            search_by_query_names_array.append(search_by_first_3_words)
+            search_by_query_names_array.append(search_by_first_2_words)
+            search_by_query_names_array.append(search_by_first_1_words)
+            # logger.debug(f'yt_title - {yt_title}; tokens - {search_by_song_name_tokens}; {search_by_first_5_words}; {search_by_first_3_words}; {search_by_first_2_words}; {search_by_first_1_words}')
+    # logger.debug(f'array - {search_by_query_names_array}')
+    search_by_query_names_array = set(search_by_query_names_array)
+    # logger.debug(f'array - {search_by_query_names_array}')
 
+    for search_by_query in search_by_query_names_array:
+        for provider in metadata_providers:
+            if provider in GET_METADATA_ACTIONS:
+                logger.debug(f"Searching metadata with '{provider}' with query '{search_by_query}'")
+                data_provider = GET_METADATA_ACTIONS.get(
+                    provider, lambda _: None)(search_by_query)
+                
+                if data_provider:
+                    _extend_to_be_sorted_and_rest(
+                        data_provider, to_be_sorted, rest, filters)
+                    logger.debug(f'result for {provider} having length {len(data_provider)}')
+            else:
+                logger.warning(
+                    '"{}" isn\'t implemented. Skipping!'.format(provider)
+                )
+                broken_provider_counter += 1
+
+    # remove duplicates from to_be_sorted list by comparing the hash of the objects
+    to_be_sorted_hash = set()
+    to_be_sorted_unique = []
+    for item in to_be_sorted:
+        # logger.debug(f'item - {item.track_name} - {item.artist_name} - {item.collection_name} - {item.release_date} - {item.hash()}')
+        if item.hash() not in to_be_sorted_hash:
+            to_be_sorted_hash.add(item.hash())
+            to_be_sorted_unique.append(item)
+    to_be_sorted = to_be_sorted_unique
+    
     # to_be_sorted will be empty and it will return None anyway, no need
     # to do it here as well
     if broken_provider_counter == len(metadata_providers):
@@ -248,6 +367,8 @@ def SEARCH_SONG(search_by="Tera Buzz", song_name="Tera Buzz", filters=[], disabl
             'No metadata provider in the configuration is '
             'implemented. Please change it to something \
                             available or use the --skip-meta flag'))
+    
+    logger.debug(f'to_be_sorted - {len(to_be_sorted)}, disable_sort - {disable_sort} - yt_title - {yt_title}')
 
     if not to_be_sorted:
         return None
@@ -257,10 +378,10 @@ def SEARCH_SONG(search_by="Tera Buzz", song_name="Tera Buzz", filters=[], disabl
         return to_be_sorted
 
     # Send the data to get sorted
-    sorted_data = _search_tokens(song_name, to_be_sorted)
+    sorted_data = _search_tokens(song_name, to_be_sorted, yt_title)
 
     # Add the unsorted data
-    sorted_data += rest
+    # sorted_data += rest
 
     return sorted_data
 

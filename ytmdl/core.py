@@ -201,7 +201,7 @@ def trim(name: str, args) -> None:
     trim.Trim(name)
 
 
-def meta(conv_name: str, song_name: str, search_by: str, link: str, args):
+def meta(conv_name: str, song_name: str, search_by: str, link: str, args, yt_og_title: str = None):
     """Handle adding the metadata for the passed song.
 
     We will use the passed name to search for metadata, ask
@@ -233,7 +233,8 @@ def meta(conv_name: str, song_name: str, search_by: str, link: str, args):
         logger.info('Getting song data for {}...'.format(search_by))
         TRACK_INFO = metadata.SEARCH_SONG(search_by, song_name, filters=[
                                           args.artist, args.album],
-                                          disable_sort=args.disable_sort)
+                                          disable_sort=args.disable_sort,
+                                          yt_title=yt_og_title)
 
     # If no meta was found raise error
     if not TRACK_INFO:
