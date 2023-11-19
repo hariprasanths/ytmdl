@@ -220,6 +220,7 @@ def set_MP3_data(song, song_path):
         except Exception:
             pass
 
+        # audio.save(v2_version=3)
         audio.save()
 
         logger.debug("Passed song release date: ", song.release_date)

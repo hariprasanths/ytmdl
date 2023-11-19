@@ -142,6 +142,8 @@ def _search_tokens(song_name, song_list, yt_title):
             remove_multiple_spaces(unidecode(song_name)).lower()
         ))
     ytSongNameTokens = song_name.split()
+    if len(ytSongNameTokens) > 5:
+        ytSongNameTokens = ytSongNameTokens[:5]
     cached_songs = song_list
     yt_title = remove_punct(
         remove_stopwords(
@@ -207,28 +209,31 @@ def _search_tokens(song_name, song_list, yt_title):
     # Sort the results based on albumDist desc and artistDist desc and dist desc
     res.sort(key=lambda x: (x[4], x[2], x[3], x[1]), reverse=True)
 
-    # for the first 5 entries, pick the item with oldest release date if dist matches and wightedDist is within 20% of the first
-    first_item_weighted_dist = res[0][4] * 0.8
-    for i in range(0, len(res)):
-        if i < 5:
-            if i == 0:
-                continue
-            if res[i][4] < (first_item_weighted_dist):
-                break
-            if (((res[i][0].release_date is not None and res[i][0].release_date != "") and (res[0][0].release_date is not None and res[0][0].release_date != ""))):
-                # convert to release_date fields to datetime and compare
-                date_format1 = "%Y-%m-%d"
-                date_format2 = "%Y-%m-%d"
-                if (len(res[0][0].release_date) == 4): date_format1 = "%Y"
-                if (len(res[0][0].release_date) == 7): date_format1 = "%Y-%m"
-                if (len(res[i][0].release_date) == 4): date_format2 = "%Y"
-                if (len(res[i][0].release_date) == 7): date_format2 = "%Y-%m"          
-                date1 = datetime.strptime(res[0][0].release_date.split('T')[0], date_format1)
-                date2 = datetime.strptime(res[i][0].release_date.split('T')[0], date_format2)
-                if date1 > date2:
+    if len(res) > 0:
+        # for the first 5 entries, pick the item with oldest release date if dist matches and wightedDist is within 30% of the first item
+        first_item_weighted_dist = res[0][4] * 0.7
+        for i in range(0, len(res)):
+            if i < 5:
+                if i == 0:
+                    continue
+                if (res[0][0].release_date is None or res[0][0].release_date == ""):
+                    first_item_weighted_dist = res[i][4] * 0.7
+                if res[i][4] < (first_item_weighted_dist):
+                    break
+                if (((res[i][0].release_date is not None and res[i][0].release_date != "") and (res[0][0].release_date is not None and res[0][0].release_date != ""))):
+                    # convert to release_date fields to datetime and compare
+                    date_format1 = "%Y-%m-%d"
+                    date_format2 = "%Y-%m-%d"
+                    if (len(res[0][0].release_date) == 4): date_format1 = "%Y"
+                    if (len(res[0][0].release_date) == 7): date_format1 = "%Y-%m"
+                    if (len(res[i][0].release_date) == 4): date_format2 = "%Y"
+                    if (len(res[i][0].release_date) == 7): date_format2 = "%Y-%m"          
+                    date1 = datetime.strptime(res[0][0].release_date.split('T')[0], date_format1)
+                    date2 = datetime.strptime(res[i][0].release_date.split('T')[0], date_format2)
+                    if date1 > date2:
+                        res[0], res[i] = res[i], res[0]
+                elif (res[0][0].release_date is None or res[0][0].release_date == ""):
                     res[0], res[i] = res[i], res[0]
-            elif (res[0][0].release_date is None or res[0][0].release_date == ""):
-                res[0], res[i] = res[i], res[0]
 
     # Return w/o the dist values
     for i in range(0, len(res)):
@@ -240,6 +245,8 @@ def _search_tokens(song_name, song_list, yt_title):
             continue
 
         res[i] = res[i][0]
+        res[i].release_date = res[i].release_date.split('T')[0]
+
     return res
 
 
@@ -280,7 +287,7 @@ def _extend_to_be_sorted_and_rest(provider_data, to_be_sorted, rest, filters):
         provider_data = filterSongs(provider_data, filters)
     if provider_data is not None:
         to_be_sorted.extend(provider_data)
-        rest.extend(provider_data[10:])
+        rest.extend(provider_data)
 
 
 def SEARCH_SONG(search_by="Tera Buzz", song_name="Tera Buzz", filters=[], disable_sort=False, yt_title=""):
@@ -307,27 +314,33 @@ def SEARCH_SONG(search_by="Tera Buzz", song_name="Tera Buzz", filters=[], disabl
     search_by_song_name_tokens = search_by.split()
     # logger.debug(f'query - {search_by}; tokens - {search_by_song_name_tokens}; ')
     if len(search_by_song_name_tokens) > 3:
-        search_by_first_5_words = ' '.join(search_by_song_name_tokens[:5])
+        if len(search_by_song_name_tokens) > 5:
+            search_by_first_5_words = ' '.join(search_by_song_name_tokens[:5])
+            search_by_query_names_array.append(search_by_first_5_words)
         search_by_first_3_words = ' '.join(search_by_song_name_tokens[:3])
-        search_by_first_2_words = ' '.join(search_by_song_name_tokens[:2])
-        search_by_first_1_words = ' '.join(search_by_song_name_tokens[:1])
-        search_by_query_names_array.append(search_by_first_5_words)
         search_by_query_names_array.append(search_by_first_3_words)
+        search_by_first_2_words = ' '.join(search_by_song_name_tokens[:2])
         search_by_query_names_array.append(search_by_first_2_words)
+        search_by_first_1_words = ' '.join(search_by_song_name_tokens[:1])
         search_by_query_names_array.append(search_by_first_1_words)
+        search_by_3_and_4_word = ' '.join(search_by_song_name_tokens[2:4])
+        search_by_query_names_array.append(search_by_3_and_4_word)
         # logger.debug(f'query - {search_by}; tokens - {search_by_song_name_tokens}; {search_by_first_5_words}; {search_by_first_3_words}; {search_by_first_2_words}; {search_by_first_1_words}')
     
     if yt_title != search_by:
         search_by_song_name_tokens = yt_title.split()
         if len(search_by_song_name_tokens) > 3:
-            search_by_first_5_words = ' '.join(search_by_song_name_tokens[:5])
+            if len(search_by_song_name_tokens) > 5:
+                search_by_first_5_words = ' '.join(search_by_song_name_tokens[:5])
+                search_by_query_names_array.append(search_by_first_5_words)
             search_by_first_3_words = ' '.join(search_by_song_name_tokens[:3])
-            search_by_first_2_words = ' '.join(search_by_song_name_tokens[:2])
-            search_by_first_1_words = ' '.join(search_by_song_name_tokens[:1])
-            search_by_query_names_array.append(search_by_first_5_words)
             search_by_query_names_array.append(search_by_first_3_words)
+            search_by_first_2_words = ' '.join(search_by_song_name_tokens[:2])
             search_by_query_names_array.append(search_by_first_2_words)
+            search_by_first_1_words = ' '.join(search_by_song_name_tokens[:1])
             search_by_query_names_array.append(search_by_first_1_words)
+            search_by_3_and_4_word = ' '.join(search_by_song_name_tokens[2:4])
+            search_by_query_names_array.append(search_by_3_and_4_word)
             # logger.debug(f'yt_title - {yt_title}; tokens - {search_by_song_name_tokens}; {search_by_first_5_words}; {search_by_first_3_words}; {search_by_first_2_words}; {search_by_first_1_words}')
     # logger.debug(f'array - {search_by_query_names_array}')
     search_by_query_names_array = set(search_by_query_names_array)

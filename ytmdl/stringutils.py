@@ -99,14 +99,18 @@ def remove_yt_words(title):
     from simber import Logger
     logger = Logger('metadata')
     title = re.sub(
-                r'\]|\[|sun\smusic|official|video|music|audio|lyrics?|-|\||\)|\(|®|^[ ]*|[ ]*$',
+                r'\]|\[|sun\smusic|official|video|music|audio|lyrics?|\-|\:|\,|\||\)|\(|®|^[ ]*|[ ]*$',
                 '',
                 str(title).lower()
             )
-    unwanted_words = [' lyric ', ' songs ', ' song ', ' hits ', ' tamil ', ' movie ', ' 4k ', ' hd ', ' hdr ', ' 3d ', ' 8d ', ' full ', ',']
+    
+    # Replace more than one space with one space
+    title = re.sub(r'\ {2,}', ' ', title)
+    unwanted_words = [' lyric ', ' songs ', ' song ', ' hits ', ' new ', ' tamil ', ' movie ', ' 4k ', ' hd ', ' hdr ', ' 3d ', ' 8d ', ' full ', ',', ' 1080 ']
     for word in unwanted_words:
         if word in title:
             title = title.replace(word, ' ')
+
     # Replace more than one space with one space
     title = re.sub(r'\ {2,}', ' ', title)
     return title

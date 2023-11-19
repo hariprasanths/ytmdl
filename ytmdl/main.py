@@ -287,7 +287,7 @@ def main(args):
         return
 
     # If download archive is passed then skip the song.
-    logger.debug(f'is_download_archive: - {str(is_download_archive)}; is_present_in_archive: - {str(is_present_in_archive(archive_content, link))}')
+    # logger.debug(f'is_download_archive: - {str(is_download_archive)}; is_present_in_archive: - {str(is_present_in_archive(archive_content, link))}')
     if is_download_archive and is_present_in_archive(archive_content, link):
         logger.warning("videoId found in the archive file. Skipping the song!")
         return
@@ -651,7 +651,6 @@ def extract_data():
 def entry():
     try:
         # log YTMDL start time
-        logger.debug(f'YTMDL run started at time - {datetime.now()}')
         extract_data()
     except KeyboardInterrupt:
         logger.info("\nExiting..!")
