@@ -361,35 +361,33 @@ def GIVE_DEFAULT(self, keyword):
         return retDefault(keyword)
     else:
         # Then read from it
-        READ_STREAM = open(os.path.join(DEFAULTS().CONFIG_PATH, 'config'), 'r')
-
-        while True:
-            line = READ_STREAM.readline()
-            if not line:
-                return retDefault(keyword)
-            if line[0] != '#' and keyword in line:
-                # Get the position of =
-                index_equal = line.index('=')
-                if line[index_equal + 1] == ' ':
-                    newDEFAULT = line[index_equal + 2:]
-                else:
-                    newDEFAULT = line[index_equal + 1:]
-
-                # Remove the "
-                newDEFAULT = newDEFAULT.replace('"', '')
-                newDEFAULT = newDEFAULT.replace("'", '')
-                # Check if the line has a \n in it
-                if "\n" in line:
-                    newDEFAULT = newDEFAULT.replace('\n', '')
-
-                if checkValidity(keyword, newDEFAULT):
-                    return newDEFAULT
-                else:
-                    if newDEFAULT:
-                        logger.warning(
-                            "{}: is invalid for option {}.".format(newDEFAULT, keyword))
+        with open(os.path.join(DEFAULTS().CONFIG_PATH, 'config'), 'r') as READ_STREAM:
+            while True:
+                line = READ_STREAM.readline()
+                if not line:
                     return retDefault(keyword)
+                if line[0] != '#' and keyword in line:
+                    # Get the position of =
+                    index_equal = line.index('=')
+                    if line[index_equal + 1] == ' ':
+                        newDEFAULT = line[index_equal + 2:]
+                    else:
+                        newDEFAULT = line[index_equal + 1:]
 
+                    # Remove the "
+                    newDEFAULT = newDEFAULT.replace('"', '')
+                    newDEFAULT = newDEFAULT.replace("'", '')
+                    # Check if the line has a \n in it
+                    if "\n" in line:
+                        newDEFAULT = newDEFAULT.replace('\n', '')
+
+                    if checkValidity(keyword, newDEFAULT):
+                        return newDEFAULT
+                    else:
+                        if newDEFAULT:
+                            logger.warning(
+                                "{}: is invalid for option {}.".format(newDEFAULT, keyword))
+                        return retDefault(keyword)
 
 if __name__ == '__main__':
     # Create the config in the examples directory

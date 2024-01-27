@@ -589,7 +589,7 @@ def extract_data():
         else:
             logger.info("{}: is empty".format(args.list))
     elif args.SONG_NAME and yt.is_playlist(args.SONG_NAME[0]):
-        logger.info("Youtube playlist passed...extracting!")
+        logger.info("Youtube playlist passed...extracting!!")
         logger.debug(f'YTMDL run started at time given a playlist - {datetime.now()}')
 
         songs, playlist_name = yt.get_playlist(

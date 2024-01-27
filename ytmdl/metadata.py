@@ -213,7 +213,7 @@ def _search_tokens(song_name, song_list, yt_title):
         # for the first 5 entries, pick the item with oldest release date if dist matches and wightedDist is within 30% of the first item
         first_item_weighted_dist = res[0][4] * 0.7
         for i in range(0, len(res)):
-            if i < 5:
+            if i < 10:
                 if i == 0:
                     continue
                 if (res[0][0].release_date is None or res[0][0].release_date == ""):

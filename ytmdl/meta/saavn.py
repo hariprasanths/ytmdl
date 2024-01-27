@@ -111,7 +111,8 @@ class SaavnSong():
 
         We need to return it in 100x100
         """
-        return url.replace("500x500", "100x100")
+        # return url.replace("500x500", "100x100")
+        return url
 
     def hash(self):
         return str(self.track_name) + str(self.artist_name) + str(self.collection_name) + str(self.release_date) + str(self.track_number)

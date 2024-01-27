@@ -13,6 +13,7 @@ from mutagen.id3 import (
     TCON,
     TRCK,
     TYER,
+    TDRC,
     PictureType
 )
 from mutagen.mp3 import MP3
@@ -208,7 +209,9 @@ def set_MP3_data(song, song_path):
 
         # Download the cover image, if failed, pass
         if dwCover(song):
-            imagedata = open(defaults.DEFAULT.COVER_IMG, 'rb').read()
+            imagedata = None
+            with open(defaults.DEFAULT.COVER_IMG, 'rb') as imagefile:
+                imagedata = imagefile.read()
             data.add(APIC(3, 'image/jpeg', 3, 'Front cover', imagedata))
             # REmove the image
             os.remove(defaults.DEFAULT.COVER_IMG)
@@ -220,18 +223,19 @@ def set_MP3_data(song, song_path):
         except Exception:
             pass
 
-        # audio.save(v2_version=3)
         audio.save()
 
         logger.debug("Passed song release date: ", song.release_date)
 
-        data.add(TYER(encoding=3, text=song.release_date))
+        # data.add(TYER(encoding=3, text=str(song.release_date)))
+        data.add(TDRC(encoding=3, text=song.release_date))
         data.add(TIT2(encoding=3, text=song.track_name))
         data.add(TPE1(encoding=3, text=song.artist_name))
         data.add(TALB(encoding=3, text=song.collection_name))
         data.add(TCON(encoding=3, text=song.primary_genre_name))
         data.add(TRCK(encoding=3, text=str(song.track_number)))
 
+        # data.save(v2_version=3)
         data.save()
 
         defaults.DEFAULT.SONG_NAME_TO_SAVE = __replace_special_characters(
